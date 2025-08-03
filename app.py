@@ -181,7 +181,7 @@ info = html.Div(
         html.Label("Cow ID:"),
         dcc.Dropdown(id='cows-dpdn',options= file_dict, value = defaults["image"], style = MENU_STYLE),])
 
-buttons = dcc.RadioItems(id = 'q-btn', options = q_dict, value = defaults["q"])
+buttons = dcc.RadioItems(id = 'q-btn', options = q_dict, value = defaults["q"], inline = True)
 
 slider_angles = dcc.Slider(0, 360, value = defaults['angle'],
     marks={
@@ -241,9 +241,12 @@ download = html.Div([
     dbc.Button("Download", id="download_button", className = "me-1", style = BUTTON_STYLE),
     dcc.Download(id="download_json")
 ])
+download_out =  html.Div(id = "download_box", style={'whiteSpace': 'pre-line'})
 
 upload = html.Div([
     dcc.Upload(dbc.Button('Upload',  className = "me-1", style = BUTTON_STYLE), id = 'upload_json')])
+
+upload_out = html.Div(id = "upload_box", style={'whiteSpace': 'pre-line'})
 
 # app layout
 sidebar = html.Div(
@@ -270,7 +273,7 @@ sidebar = html.Div(
             ]),
             dbc.Col([teat_len]),
         ]),
-         dbc.Row([download, upload]),
+         dbc.Row([dbc.Col([download, download_out]), dbc.Col([upload, upload_out])]),
      ])
     ], style=SIDEBAR_STYLE)
 
@@ -278,9 +281,12 @@ content = html.Div([
     dbc.Row([dcc.Graph(id='graph', figure = blank_fig(), style = PLOT_STYLE)]),],
     id="page-content", style=CONTENT_STYLE)
 
+# build app
 app = Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
 app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 server = app.server
+
+
 # app fuctionality 
 # last visited =====================
 last_cow = defaults["image"]
@@ -435,6 +441,7 @@ def submit_print(file_name, q):
 # download annotations ======================
 @callback(
     Output("download_json", "data"),
+    Output("download_box", "children"),
     Input("download_button", "n_clicks"),
     prevent_initial_call=True,
 )
@@ -453,11 +460,16 @@ def func(n_clicks):
                 if end_center is not None:
                     annotations_out[key_file][q]["end_p"] = center_todict(end_center)
     annotations_text = json.dumps(annotations_out)
-    return dict(content=annotations_text, filename="annotations_teat_length.txt")
+    current_datetime = datetime.now()
+    formatted_time = current_datetime.strftime("%H:%M:%S")
+    return dict(content=annotations_text, filename="annotations_teat_length.txt"), f"Last download: {formatted_time}"
 
 @callback(
+    Output('upload_box', 'children'),
     Input('upload_json', 'contents'),
-    State('upload_json', 'filename'))
+    State('upload_json', 'filename'), 
+    prevent_initial_call=True,
+)
 def update_output(contents, filename):
     global annotations
     file_type = filename.split(".")[1]
@@ -481,7 +493,9 @@ def update_output(contents, filename):
                     if end_center is not None:
                         annotations_out[key_file][q]["end_p"] = center_tolist(end_center)
             annotations = copy.deepcopy(annotations_out)
-
+            current_datetime = datetime.now()
+            formatted_time = current_datetime.strftime("%H:%M:%S")
+            return f"Last upload: {formatted_time}"
 
 if __name__ == '__main__':
     app.run()
